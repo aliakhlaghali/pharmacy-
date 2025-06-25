@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+  <meta charset="UTF-8">
+  <title>📦 مدیریت انبار داروخانه</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css"/>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  <style>
+    body {
+      font-family: Tahoma, sans-serif;
+      direction: rtl;
+      margin: 0;
+      padding: 20px;
+      background: linear-gradient(135deg, #74b9ff, #81ecec);
+      color: #2d3436;
+    }
+    h1, h2 { text-align: center; }
+    .box {
+      max-width: 700px;
+      background: #fff;
+      padding: 20px;
+      border-radius: 12px;
+      margin: 20px auto;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+    }
+    input, select, button {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      font-size: 16px;
+      border-radius: 8px;
+      border: none;
+    }
+    button {
+      background: linear-gradient(to right, #00b894, #55efc4);
+      color: white;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.3s;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    }
+    button:hover {
+      transform: scale(1.05);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    th, td {
+      border: 1px solid #b2bec3;
+      padding: 8px;
+      text-align: center;
+    }
+    th {
+      background-color: #dfe6e9;
+    }
+    .delete-btn {
+      background: #d63031;
+      color: #fff;
+      padding: 6px 12px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    .hidden { display: none; }
+    .footer {
+      text-align: center;
+      margin-top: 40px;
+      font-size: 14px;
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body>
+
+<div class="box animate__animated" id="login-choice">
+  <h1>👤 انتخاب نوع ورود</h1>
+  <button onclick="showSection('login-user')">ورود کاربر عادی</button>
+  <button onclick="showSection('login-admin')">ورود مدیر</button>
+</div>
+
+<div class="box hidden animate__animated" id="login-user">
+  <h1>🔐 ورود کاربر</h1>
+  <input type="text" id="user-username" placeholder="نام کاربری">
+  <input type="password" id="user-password" placeholder="رمز عبور">
+  <button onclick="login('user')">ورود کاربر</button>
+  <button onclick="showSection('login-choice')">🔙 بازگشت</button>
+</div>
+
+<div class="box hidden animate__animated" id="login-admin">
+  <h1>🛡️ ورود مدیر</h1>
+  <input type="text" id="admin-username" placeholder="نام مدیر">
+  <input type="password" id="admin-password" placeholder="رمز عبور">
+  <button onclick="login('admin')">ورود مدیر</button>
+  <button onclick="showSection('login-choice')">🔙 بازگشت</button>
+</div>
+
+<div class="box hidden animate__animated" id="main-app">
+  <h2>💊 انبار داروخانه</h2>
+  <form id="drug-form">
+    <input type="text" id="name" placeholder="نام دارو" required>
+    <input type="number" id="quantity" placeholder="تعداد موجودی" required>
+    <input type="date" id="expiry" required>
+    <button type="submit">➕ افزودن دارو</button>
+  </form>
+
+  <table id="drug-table" class="hidden">
+    <thead>
+      <tr>
+        <th>نام دارو</th>
+        <th>تعداد</th>
+        <th>تاریخ انقضا</th>
+        <th id="admin-actions">عملیات</th>
+      </tr>
+    </thead>
+    <tbody id="drug-table-body"></tbody>
+  </table>
+
+  <div style="text-align: center; margin-top: 20px;">
+    <button onclick="toggleReport()">📋 دریافت گزارش</button>
+    <div id="report-options" class="hidden" style="margin-top: 10px;">
+      <button onclick="window.print()">🖨 چاپ</button>
+      <button onclick="exportToExcel()">📊 ذخیره Excel</button>
+      <button onclick="exportToWord()">📝 ذخیره Word</button>
+      <button onclick="exportToPDF()">📄 ذخیره PDF</button>
+    </div>
+  </div>
+
+  <button id="admin-btn" class="hidden" onclick="showSection('admin-panel')">⚙️ مدیریت کاربران</button>
+  <button onclick="saveDrugs()">💾 ذخیره اطلاعات</button>
+  <button onclick="logout()">🚪 خروج</button>
+</div>
+
+<div class="box hidden animate__animated" id="admin-panel">
+  <h2>👤 تعریف کاربر جدید</h2>
+  <input type="text" id="new-username" placeholder="نام کاربر">
+  <input type="text" id="new-code" placeholder="رمز عبور کاربر">
+  <select id="new-role">
+    <option value="user">کاربر عادی</option>
+    <option value="admin">مدیر</option>
+  </select>
+  <button onclick="addUser()">➕ افزودن کاربر</button>
+  <button onclick="showSection('main-app')">❌ بازگشت</button>
+</div>
+
+<div class="footer">
+  <p>صاحب اثر: میرزا علی | mirza.ali.official</p>
+  <a href="https://t.me/mirza_ali_official" target="_blank"><i class="fab fa-telegram"></i></a>
+  <a href="https://instagram.com/mirza.ali.official" target="_blank"><i class="fab fa-instagram"></i></a>
+</div>
+
+<script>
+function toPersianDate(isoDate) {
+  const date = new Date(isoDate);
+  return new Intl.DateTimeFormat('fa-IR-u-ca-persian', { dateStyle: 'short' }).format(date);
+}
+
+function showSection(idToShow) {
+  const all = ['login-choice', 'login-user', 'login-admin', 'main-app', 'admin-panel'];
+  all.forEach(id => document.getElementById(id).classList.add('hidden'));
+  document.getElementById(idToShow).classList.remove('hidden');
+}
+
+let users = JSON.parse(localStorage.getItem("users"));
+if (!users || !users.find(u => u.username === "mirza")) {
+  users = [{ username: "mirza", password: "ali1234", role: "admin" }];
+  localStorage.setItem("users", JSON.stringify(users));
+}
+let drugs = JSON.parse(localStorage.getItem("drugs")) || [];
+let currentUser = null;
+
+const adminBtn = document.getElementById("admin-btn");
+const form = document.getElementById("drug-form");
+
+function saveUsers() {
+  localStorage.setItem("users", JSON.stringify(users));
+}
+function saveDrugs() {
+  localStorage.setItem("drugs", JSON.stringify(drugs));
+}
+function login(type) {
+  const uname = type === 'admin' ? 'admin-username' : 'user-username';
+  const pass = type === 'admin' ? 'admin-password' : 'user-password';
+  const username = document.getElementById(uname).value.trim();
+  const password = document.getElementById(pass).value.trim();
+  const user = users.find(u => u.username === username && u.password === password);
+  if (!user) return alert("نام کاربری یا رمز عبور نادرست است!");
+  if (type === 'admin' && user.role !== 'admin') return alert("این کاربر مدیر نیست!");
+  if (type === 'user' && user.role !== 'user') return alert("این ورود فقط برای کاربران عادی است!");
+  currentUser = user;
+  showSection("main-app");
+  adminBtn.classList.toggle("hidden", currentUser.role !== "admin");
+  renderDrugs();
+}
+function logout() {
+  saveDrugs();
+  currentUser = null;
+  showSection("login-choice");
+}
+function renderDrugs() {
+  const table = document.getElementById("drug-table");
+  const body = document.getElementById("drug-table-body");
+  const actionsHeader = document.getElementById("admin-actions");
+  body.innerHTML = "";
+  if (drugs.length === 0) {
+    table.classList.add("hidden");
+    return;
+  }
+  table.classList.remove("hidden");
+  actionsHeader.style.display = currentUser.role === "admin" ? "table-cell" : "none";
+  drugs.forEach((drug, i) => {
+    const row = document.createElement("tr");
+    row.innerHTML = `
+      <td>${drug.name}</td>
+      <td>${drug.quantity}</td>
+      <td>${toPersianDate(drug.expiry)}</td>
+      ${currentUser.role === "admin" ? `<td><button class="delete-btn" onclick="deleteDrug(${i})">حذف</button></td>` : ""}
+    `;
+    body.appendChild(row);
+  });
+}
+function deleteDrug(index) {
+  if (currentUser.role !== "admin") return;
+  drugs.splice(index, 1);
+  saveDrugs();
+  renderDrugs();
+}
+form.onsubmit = function(e) {
+  e.preventDefault();
+  const name = document.getElementById("name").value;
+  const quantity = document.getElementById("quantity").value;
+  const expiry = document.getElementById("expiry").value;
+  drugs.push({ name, quantity, expiry });
+  saveDrugs();
+  renderDrugs();
+  form.reset();
+};
+function addUser() {
+  if (!currentUser || currentUser.role !== "admin") return alert("فقط مدیر می‌تواند کاربر اضافه کند");
+  const name = document.getElementById("new-username").value;
+  const code = document.getElementById("new-code").value;
+  const role = document.getElementById("new-role").value;
+  if (!name || !code) return alert("نام و رمز عبور را وارد کنید");
+  if (users.find(u => u.username === name)) return alert("نام کاربری تکراری است");
+  users.push({ username: name, password: code, role });
+  saveUsers();
+  alert("کاربر جدید افزوده شد");
+  document.getElementById("new-username").value = "";
+  document.getElementById("new-code").value = "";
+}
+function toggleReport() {
+  document.getElementById("report-options").classList.toggle("hidden");
+}
+function exportToExcel() {
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.table_to_sheet(document.getElementById('drug-table'));
+  XLSX.utils.book_append_sheet(wb, ws, 'Drugs');
+  XLSX.writeFile(wb, 'drugs-report.xlsx');
+}
+function exportToWord() {
+  const html = document.getElementById('drug-table').outerHTML;
+  const blob = new Blob(['﻿' + html], { type: 'application/msword' });
+  saveAs(blob, 'drugs-report.doc');
+}
+function exportToPDF() {
+  const element = document.getElementById('drug-table');
+  html2pdf().from(element).save('drugs-report.pdf');
+}
+window.addEventListener('beforeunload', saveDrugs);
+</script>
+</body>
+</html>
